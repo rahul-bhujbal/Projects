@@ -1,0 +1,32 @@
+{
+  "connector.class": "io.debezium.connector.oracle.OracleConnector",
+  "tasks.max": "1",
+
+  "database.hostname": "oracle",
+  "database.port": "1521",
+  "database.user": "c##dbzuser",
+  "database.password": "dbz",
+  "database.dbname": "FREE",
+  "database.pdb.name": "FREEPDB1",
+
+  "topic.prefix": "sap",
+  "schema.include.list": "SAPSD",
+  "table.include.list": "SAPSD\\..*",
+
+  "snapshot.mode": "initial",
+  "log.mining.strategy": "online_catalog",
+  "decimal.handling.mode": "string",
+  "tombstones.on.delete": "false",
+
+  "schema.history.internal.kafka.bootstrap.servers": "kafka:9092",
+  "schema.history.internal.kafka.topic": "schema-history.sap",
+  "schema.history.internal.store.only.captured.tables.ddl": "true",
+
+  "topic.creation.default.replication.factor": "1",
+  "topic.creation.default.partitions": "3",
+
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter.schemas.enable": "false",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter.schemas.enable": "false"
+}

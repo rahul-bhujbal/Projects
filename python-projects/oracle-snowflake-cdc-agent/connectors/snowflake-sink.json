@@ -1,0 +1,21 @@
+{
+  "connector.class": "com.snowflake.kafka.connector.SnowflakeStreamingSinkConnector",
+  "tasks.max": "3",
+  "topics.regex": "sap\\.SAPSD\\..*",
+  "snowflake.topic2table.map": "sap.SAPSD.T001:T001_RAW,sap.SAPSD.T001W:T001W_RAW,sap.SAPSD.TVKO:TVKO_RAW,sap.SAPSD.TVTW:TVTW_RAW,sap.SAPSD.TSPA:TSPA_RAW,sap.SAPSD.TVTA:TVTA_RAW,sap.SAPSD.TVAK:TVAK_RAW,sap.SAPSD.TVLK:TVLK_RAW,sap.SAPSD.TVFK:TVFK_RAW,sap.SAPSD.BUT000:BUT000_RAW,sap.SAPSD.CVI_CUST_LINK:CVI_CUST_LINK_RAW,sap.SAPSD.KNA1:KNA1_RAW,sap.SAPSD.KNB1:KNB1_RAW,sap.SAPSD.KNVV:KNVV_RAW,sap.SAPSD.KNVP:KNVP_RAW,sap.SAPSD.MARA:MARA_RAW,sap.SAPSD.MAKT:MAKT_RAW,sap.SAPSD.MARC:MARC_RAW,sap.SAPSD.MVKE:MVKE_RAW,sap.SAPSD.PRCD_ELEMENTS:PRCD_ELEMENTS_RAW,sap.SAPSD.VBAK:VBAK_RAW,sap.SAPSD.VBAP:VBAP_RAW,sap.SAPSD.VBEP:VBEP_RAW,sap.SAPSD.VBKD:VBKD_RAW,sap.SAPSD.VBPA:VBPA_RAW,sap.SAPSD.VBFA:VBFA_RAW,sap.SAPSD.LIKP:LIKP_RAW,sap.SAPSD.LIPS:LIPS_RAW,sap.SAPSD.VBRK:VBRK_RAW,sap.SAPSD.VBRP:VBRP_RAW",
+  "snowflake.url.name": "__SNOWFLAKE_URL__",
+  "snowflake.user.name": "KAFKA_CONNECTOR_USER",
+  "snowflake.private.key": "${file:/opt/secrets/snowflake.properties:private.key}",
+  "snowflake.role.name": "KAFKA_CONNECTOR_ROLE",
+  "snowflake.database.name": "SAP_RAW",
+  "snowflake.schema.name": "SD",
+  "snowflake.enable.schematization": "false",
+  "snowflake.autocreate.table.type": "snowflake",
+  "snowflake.validation": "server_side",
+  "snowflake.streaming.validate.compatibility.with.classic": "false",
+  "errors.tolerance": "none",
+  "errors.log.enable": "true",
+  "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter.schemas.enable": "false"
+}

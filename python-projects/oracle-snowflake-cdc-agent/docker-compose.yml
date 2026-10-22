@@ -1,0 +1,106 @@
+# Oracle (SAP SD tables) -> Debezium -> Kafka -> Snowflake Connector for Kafka v4
+# Start: docker compose up -d --build      Stop: docker compose down
+# Needs about 8 GB of RAM for Docker.
+name: sap-cdc
+
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: oracle
+    ports:
+      - "1522:1521"
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      APP_USER: SAPSD                       # created in FREEPDB1 on first start
+      APP_USER_PASSWORD: ${SAPSD_PASSWORD}
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./oracle:/scripts:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+
+  kafka:
+    image: apache/kafka:3.9.1
+    container_name: kafka
+    ports:
+      - "29092:29092"                       # for tools on your machine: localhost:29092
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_RETENTION_HOURS: 168        # 7 days of replay
+    # Kafka data lives in the container: kept across restarts/stops,
+    # removed by "docker compose down".
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  connect:
+    build:
+      context: ./connect
+      args:
+        DEBEZIUM_VERSION: ${DEBEZIUM_VERSION}
+        SNOWFLAKE_CONNECTOR_VERSION: ${SNOWFLAKE_CONNECTOR_VERSION}
+    image: sap-cdc-connect:local
+    container_name: connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: sap-cdc-connect
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      # Lets connector configs read secrets: ${file:/opt/secrets/snowflake.properties:private.key}
+      CONNECT_CONFIG_PROVIDERS: file
+      CONNECT_CONFIG_PROVIDERS_FILE_CLASS: org.apache.kafka.common.config.provider.FileConfigProvider
+      # Snowflake v4 SDK buffers off-heap: keep the JVM heap at about half the container memory.
+      HEAP_OPTS: "-Xms512m -Xmx2g"
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx2g"
+    volumes:
+      - ./snowflake/secrets:/opt/secrets:ro
+    mem_limit: 4g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8083/connector-plugins > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"                         # browse topics and Debezium events
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
+
+volumes:
+  oracle-data:

@@ -1,0 +1,6 @@
+.env
+connectors/*.rendered.json
+logs/
+portal/.env
+snowflake/secrets/
+snowflake/snowflake_setup_rendered.sql

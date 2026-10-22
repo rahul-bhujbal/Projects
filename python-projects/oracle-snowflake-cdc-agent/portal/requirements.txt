@@ -1,0 +1,5 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+snowflake-connector-python>=3.10
+cryptography>=42
+oracledb>=2.0

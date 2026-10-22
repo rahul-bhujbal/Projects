@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo India Customer Portal</title>
+  <link rel="stylesheet" href="/static/style.css?v=3">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="#/" aria-label="Home">
+      <span class="brand-mark">DI</span>
+      <span class="brand-text"><strong>Demo India</strong><small>Electrical &amp; Power Solutions</small></span>
+    </a>
+
+    <div class="context">
+      <span class="label">You are in</span>
+      <strong>Sales Org 1000 · India</strong>
+    </div>
+
+    <div class="context">
+      <label class="label" for="account">Shopping for</label>
+      <select id="account" aria-label="Customer account"></select>
+      <small id="account-meta"></small>
+    </div>
+
+    <details class="quick-links">
+      <summary>Quick Links</summary>
+      <div class="dropdown right">
+        <a href="#/orders/open">Open orders</a>
+        <a href="#/deliveries/not_billed">Shipped, not invoiced</a>
+        <a href="#/orders/blocked">Credit-blocked orders</a>
+        <a href="#/products">Product catalogue</a>
+      </div>
+    </details>
+
+    <div class="user">
+      <span>Welcome, <strong>CSR</strong></span>
+      <a href="#/summary">Account summary</a>
+    </div>
+  </div>
+</header>
+
+<nav class="bar">
+  <div class="bar-inner">
+    <a class="home" href="#/" title="Home">&#8962;</a>
+    <details class="categories">
+      <summary>Shop By Category</summary>
+      <div id="category-list" class="dropdown"></div>
+    </details>
+    <form id="product-search" class="search" role="search">
+      <input id="product-q" type="search" placeholder="Enter a product name, category, material ID or part number" autocomplete="off">
+      <button type="submit">Search</button>
+    </form>
+    <a class="cart" href="#/cart" title="Cart">&#128722; <span id="cart-count">(0)</span></a>
+  </div>
+</nav>
+
+<main id="app" class="page"></main>
+
+<footer class="foot">
+  <span id="freshness">Connecting to Snowflake…</span>
+  <span>Data: Snowflake <code>SAP_GOLD.SALES</code> · Source: SAP SD (Oracle) via Debezium + Kafka</span>
+</footer>
+
+<!-- Home page template -->
+<template id="tpl-home">
+  <section class="tiles" id="tiles"></section>
+  <div class="grid">
+    <section class="panel">
+      <h2>Order Dashboard</h2>
+      <form id="doc-search" class="doc-search">
+        <select id="doc-type" aria-label="Search by">
+          <option value="order">Order #</option>
+          <option value="po">PO #</option>
+          <option value="delivery">Delivery #</option>
+          <option value="invoice">Invoice #</option>
+        </select>
+        <input id="doc-value" placeholder="Enter order, PO, delivery or invoice #" required>
+        <button type="submit">Search</button>
+      </form>
+      <div class="links">
+        <a href="#/orders/quick"><b>&#128203; Quick Order Search</b><span>Open orders placed in the last 30 days</span></a>
+        <a href="#/documents"><b>&#128196; Document Search</b><span>Find orders, deliveries and invoices</span></a>
+        <a href="#/orders/recent"><b>&#128269; Recent Order Search</b><span>Filter by status, date and created by</span></a>
+        <a href="#/returns"><b>&#8617; Return Center</b><span>Your return requests and credits</span></a>
+        <a href="#/deliveries"><b>&#128666; Delivery Search</b><span>Find your delivery information</span></a>
+        <a href="#/orders/manage"><b>&#128193; Manage Orders</b><span>Your open and closed orders</span></a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="quick">Quick Cart</button>
+        <button class="tab" data-tab="upload">Order Upload</button>
+        <button class="tab" data-tab="paste">Copy and Paste</button>
+      </div>
+      <div class="tab-body" data-body="quick">
+        <p class="hint">Already know what you need? Fill in the fields below to add items to your cart.</p>
+        <table class="entry">
+          <thead><tr><th></th><th>Part Number</th><th>Quantity</th><th>Requested Ship By <small>(optional)</small></th></tr></thead>
+          <tbody id="entry-rows"></tbody>
+        </table>
+        <datalist id="parts"></datalist>
+      </div>
+      <div class="tab-body hidden" data-body="upload">
+        <p class="hint">Upload a CSV file with columns <code>part_number,quantity,requested_date</code> (date optional, YYYY-MM-DD).</p>
+        <input type="file" id="upload-file" accept=".csv,text/csv">
+      </div>
+      <div class="tab-body hidden" data-body="paste">
+        <p class="hint">Paste one line per item: <code>part number, quantity, date</code> (comma or tab separated).</p>
+        <textarea id="paste-box" rows="7" placeholder="MCB-C32-3P, 50&#10;VFD-7.5KW, 2, 2026-11-15"></textarea>
+      </div>
+      <div class="actions">
+        <a href="#" id="add-rows">Add More Rows</a>
+        <span class="grow"></span>
+        <button class="btn green" id="add-cart">Add to Cart</button>
+        <button class="btn green outline" id="check-avail">Check Availability</button>
+      </div>
+      <div id="avail-result"></div>
+    </section>
+  </div>
+</template>
+
+<!-- AI assistant (Snowflake Cortex Agent) -->
+<button id="ai-open" class="ai-fab" aria-controls="ai-panel" title="Ask the sales assistant">&#10024; Ask AI</button>
+<aside id="ai-panel" class="ai-panel hidden" aria-label="Sales assistant">
+  <header class="ai-head">
+    <div><strong>Sales Assistant</strong><small id="ai-scope">All accounts</small></div>
+    <div>
+      <button class="ai-icon" id="ai-clear" title="New conversation">&#8635;</button>
+      <button class="ai-icon" id="ai-close" title="Close">&#10005;</button>
+    </div>
+  </header>
+  <div id="ai-log" class="ai-log" aria-live="polite"></div>
+  <div id="ai-suggest" class="ai-suggest"></div>
+  <form id="ai-form" class="ai-form">
+    <textarea id="ai-input" rows="2" maxlength="1000" placeholder="Ask about orders, deliveries, invoices, backlog…"></textarea>
+    <button type="submit" id="ai-send">Send</button>
+  </form>
+  <p class="ai-foot">Answers are generated by Snowflake Cortex from SAP_GOLD.SALES. Check the SQL for important numbers.</p>
+</aside>
+
+<div id="toast" class="toast hidden" role="status"></div>
+<script src="/static/app.js?v=3"></script>
+</body>
+</html>
