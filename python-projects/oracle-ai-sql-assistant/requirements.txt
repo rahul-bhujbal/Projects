@@ -1,0 +1,5 @@
+anthropic
+oracledb
+pandas
+python-dotenv
+streamlit
